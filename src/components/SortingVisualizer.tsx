@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from 'react';
-import P5 from 'p5';
+import P5 from 'p5'; // Ensure @types/p5 is installed
 import * as Tone from 'tone';
 
 type Theme = 'default' | 'tree' | 'space';
@@ -17,13 +17,18 @@ interface SortingVisualizerProps {
   onResetComplete: () => void;
 }
 
+interface QuickSortState {
+  low: number;
+  high: number;
+}
+
 const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm, speed, size, start, reset, onResetComplete }) => {
   const sketchRef = useRef<HTMLDivElement>(null);
   let values: number[] = [];
   let i = 0;
   let j = 0;
   let frameCount = 0;
-  let states: any[] = [];
+  let states: (number[] | QuickSortState)[] = []; // Union type for states
   let heapSize = 0;
   let synth: Tone.Synth | null = null;
   let lastSoundTime = 0;
@@ -33,7 +38,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       const width = sketchRef.current?.clientWidth || 300;
       const height = Math.min(400, window.innerHeight * 0.6);
       p.createCanvas(width, height);
-      resetArray(p);
+      resetArray();
       Tone.start().then(() => {
         synth = new Tone.Synth().toDestination();
       });
@@ -43,32 +48,32 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       const width = sketchRef.current?.clientWidth || 300;
       const height = Math.min(400, window.innerHeight * 0.6);
       p.resizeCanvas(width, height);
-      resetArray(p);
+      resetArray();
     };
 
     p.draw = () => {
       frameCount++;
-      drawScene(p);
+      drawScene();
 
       if (!start || frameCount % speed !== 0) return;
 
       if (reset) {
-        resetArray(p);
+        resetArray();
         onResetComplete();
         return;
       }
 
       switch (algorithm) {
-        case 'bubble': bubbleSortStep(p); break;
-        case 'quick': quickSortStep(p); break;
-        case 'merge': mergeSortStep(p); break;
-        case 'heap': heapSortStep(p); break;
-        case 'selection': selectionSortStep(p); break;
-        case 'insertion': insertionSortStep(p); break;
+        case 'bubble': bubbleSortStep(); break;
+        case 'quick': quickSortStep(); break;
+        case 'merge': mergeSortStep(); break;
+        case 'heap': heapSortStep(); break;
+        case 'selection': selectionSortStep(); break;
+        case 'insertion': insertionSortStep(); break;
       }
     };
 
-    const resetArray = (p: P5) => {
+    const resetArray = () => {
       values = new Array(size);
       for (let k = 0; k < values.length; k++) {
         values[k] = theme === 'default' ? p.random(50, p.height - 50) : p.random(10, p.height * 0.15);
@@ -78,7 +83,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       states = [];
       heapSize = size;
       lastSoundTime = 0;
-      frameCount = 0; // Reset frame count to prevent immediate sorting
+      frameCount = 0;
     };
 
     const playSound = (value: number) => {
@@ -91,7 +96,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const bubbleSortStep = (p: P5) => {
+    const bubbleSortStep = () => {
       if (i < values.length - 1) {
         if (j < values.length - i - 1) {
           if (values[j] > values[j + 1]) {
@@ -106,12 +111,13 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const quickSortStep = (p: P5) => {
+    const quickSortStep = () => {
       if (states.length === 0) states = [{ low: 0, high: values.length - 1 }];
       if (i < states.length) {
-        const { low, high } = states[i];
+        const state = states[i] as QuickSortState;
+        const { low, high } = state;
         if (low < high) {
-          let pivot = values[high];
+          const pivot = values[high];
           let partitionIndex = low;
           for (let k = low; k < high; k++) {
             if (values[k] <= pivot) {
@@ -122,7 +128,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
           }
           [values[partitionIndex], values[high]] = [values[high], values[partitionIndex]];
           playSound(values[partitionIndex]);
-          states[i] = { low, high: -1 }; // Mark as done
+          states[i] = { low, high: -1 };
           if (partitionIndex - 1 > low) states.push({ low, high: partitionIndex - 1 });
           if (partitionIndex + 1 < high) states.push({ low: partitionIndex + 1, high });
           i++;
@@ -132,7 +138,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const mergeSortStep = (p: P5) => {
+    const mergeSortStep = () => {
       if (states.length === 0) {
         states = [[...values]];
         let step = 1;
@@ -140,20 +146,20 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
           for (let start = 0; start < values.length; start += step * 2) {
             const mid = Math.min(start + step, values.length);
             const end = Math.min(start + step * 2, values.length);
-            states.push(merge(values.slice(start, mid), values.slice(mid, end), start, end));
+            states.push(merge(values.slice(start, mid), values.slice(mid, end), start));
           }
           step *= 2;
         }
       }
       if (i < states.length - 1) {
-        values = [...states[i]];
+        values = [...(states[i] as number[])];
         playSound(values[Math.min(j, values.length - 1)]);
         j = (j + 1) % values.length;
         if (j === 0) i++;
       }
     };
 
-    const merge = (left: number[], right: number[], start: number, end: number) => {
+    const merge = (left: number[], right: number[], start: number) => {
       const result = [...values];
       let l = 0, r = 0, k = start;
       while (l < left.length && r < right.length) {
@@ -164,23 +170,23 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       return result;
     };
 
-    const heapSortStep = (p: P5) => {
+    const heapSortStep = () => {
       if (states.length === 0) {
         heapSize = values.length;
-        for (let k = Math.floor(heapSize / 2) - 1; k >= 0; k--) heapify(p, k, heapSize);
+        for (let k = Math.floor(heapSize / 2) - 1; k >= 0; k--) heapify(k, heapSize);
         states = [[...values]];
       }
       if (i < values.length - 1) {
         [values[0], values[heapSize - 1]] = [values[heapSize - 1], values[0]];
         playSound(values[0]);
         heapSize--;
-        heapify(p, 0, heapSize);
+        heapify(0, heapSize);
         states.push([...values]);
         i++;
       }
     };
 
-    const heapify = (p: P5, index: number, size: number) => {
+    const heapify = (index: number, size: number) => {
       let largest = index;
       const left = 2 * index + 1;
       const right = 2 * index + 2;
@@ -189,11 +195,11 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       if (largest !== index) {
         [values[index], values[largest]] = [values[largest], values[index]];
         playSound(values[index]);
-        heapify(p, largest, size);
+        heapify(largest, size);
       }
     };
 
-    const selectionSortStep = (p: P5) => {
+    const selectionSortStep = () => {
       if (i < values.length - 1) {
         let minIndex = i;
         if (j <= values.length - 1) {
@@ -211,7 +217,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const insertionSortStep = (p: P5) => {
+    const insertionSortStep = () => {
       if (i < values.length) {
         if (j > 0 && values[j - 1] > values[j]) {
           [values[j - 1], values[j]] = [values[j], values[j - 1]];
@@ -224,15 +230,15 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const drawScene = (p: P5) => {
+    const drawScene = () => {
       switch (theme) {
-        case 'space': drawSpace(p); break;
-        case 'default': drawDefault(p); break;
-        case 'tree': drawTree(p); break;
+        case 'space': drawSpace(); break;
+        case 'default': drawDefault(); break;
+        case 'tree': drawTree(); break;
       }
     };
 
-    const drawSpace = (p: P5) => {
+    const drawSpace = () => {
       p.background(20, 20, 50);
       const spacing = p.width / values.length;
       for (let k = 0; k < values.length; k++) {
@@ -245,7 +251,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const drawDefault = (p: P5) => {
+    const drawDefault = () => {
       p.background(50, 50, 70);
       const barWidth = p.width / values.length;
       for (let k = 0; k < values.length; k++) {
@@ -258,7 +264,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
       }
     };
 
-    const drawTree = (p: P5) => {
+    const drawTree = () => {
       p.background(100, 150, 200);
       p.fill(139, 69, 19);
       p.rect(0, p.height - 50, p.width, 50);
@@ -282,6 +288,7 @@ const SortingVisualizer: React.FC<SortingVisualizerProps> = ({ theme, algorithm,
     };
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (sketchRef.current) {
       const p5Instance = new P5(sketch, sketchRef.current);

@@ -146,7 +146,7 @@ export default function Home() {
           <div className="flex gap-6">
             <a href="https://github.com/topics/login" className="text-cyan-400 hover:text-cyan-200 transform hover:scale-110 hover:rotate-6 transition-all duration-300">GitHub</a>
             <a href="https://x.com/bhaveshhhh_03" className="text-cyan-400 hover:text-cyan-200 transform hover:scale-110 hover:rotate-6 transition-all duration-300">Twitter</a>
-            <a href="www.linkedin.com/in/bhaveshtilara03" className="text-cyan-400 hover:text-cyan-200 transform hover:scale-110 hover:rotate-6 transition-all duration-300">Linkedin</a>
+            <a href="https://www.linkedin.com/in/bhaveshtilara03/" className="text-cyan-400 hover:text-cyan-200 transform hover:scale-110 hover:rotate-6 transition-all duration-300">Linkedin</a>
           </div>
         </div>
       </footer>
